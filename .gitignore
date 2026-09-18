@@ -10,3 +10,6 @@ Claim_Summary.md
 __pycache__/
 *.pyc
 .venv/
+
+# Local Claude Code session artifacts, not part of the published skill.
+.claude/
