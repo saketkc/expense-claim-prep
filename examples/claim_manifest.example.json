@@ -1,0 +1,34 @@
+{
+  "title": "Expense Claim - Combined Receipts and Payment Proof",
+  "currency": "INR",
+  "items": [
+    {
+      "date": "10 Jul 2026",
+      "description": "Air travel: Mumbai to Kolkata to Mumbai (round trip)",
+      "amount": "17,673.00",
+      "receipt": "2_Receipts_matched_to_statements/2026-07-10_Balmer_BOM-CCU-BOM_roundtrip_17673.pdf",
+      "proof": {"statement": "July"}
+    },
+    {
+      "date": "22 Jul 2026",
+      "description": "Uber ride (ICICI card)",
+      "amount": "2,642.98",
+      "receipt": "2_Receipts_matched_to_statements/2026-07-22_Uber_2642.98.pdf",
+      "proof": "2_Receipts_matched_to_statements/2026-07-22_Uber_2642.98_ICICI_alert.pdf"
+    },
+    {
+      "date": "4 Sep 2026",
+      "description": "Uber ride (SBI card)",
+      "amount": "418.47",
+      "receipt": "3_Receipts_other_card_SBI_7636/2026-09-04_Uber_418.47.pdf",
+      "proof": "3_Receipts_other_card_SBI_7636/email_screenshots/2026-09-04_SBI_alert_418.47.jpg"
+    }
+  ],
+  "statements": [
+    {"label": "July", "path": "1_Statements_redacted/REDACTED_CreditCardStatementJuly.pdf"}
+  ],
+  "notes": [
+    "Excluded: a Mumbai-Kolkata Balmer Lawrie booking dated 17 Jul 2026 (INR 7,735.00) has no matching",
+    "charge on any statement in this claim and needs manual verification before it can be claimed."
+  ]
+}

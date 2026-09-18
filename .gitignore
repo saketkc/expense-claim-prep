@@ -1,0 +1,12 @@
+# Never commit a filled-in claim: real PII, bank details, receipts, statements.
+# Only examples/claimant_info.example.yaml (the blank template) should ever be tracked.
+claimant_info.yaml
+claimant_info.yml
+claimant_info.json
+Claim_Summary.md
+*.pdf
+!examples/*.pdf
+
+__pycache__/
+*.pyc
+.venv/

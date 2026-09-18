@@ -1,0 +1,34 @@
+# Copy this file into the claim folder (NOT into the skill directory) and fill
+# in what your institution's reimbursement form actually asks for. Leave any
+# field blank or delete it if it doesn't apply -- never invent a value for one
+# that's missing when generating the claim summary.
+#
+# This file holds bank details and personal contact info. Keep it next to the
+# claim's receipts, not in a synced/shared location, and delete it once the
+# claim is filed if you don't need to keep a copy.
+
+claimant:
+  name:
+  designation:                 # role/title, e.g. "PhD Student", "Faculty"
+  department:
+  institution:
+  employee_or_student_id:
+  email:
+  phone:
+  address:
+
+bank_details:
+  account_holder_name:
+  bank_name:
+  branch:
+  account_number:
+  account_type:                # savings / current
+  ifsc_or_routing_number:      # IFSC (India), routing number (US), sort code (UK), etc.
+  swift_bic:                   # only needed for international transfers
+
+tax_id:                        # PAN / SSN / national tax ID, only if the form asks for it
+
+claim:
+  purpose:                     # e.g. "Conference travel - CSHL Meeting, Aug 2026"
+  cost_center_or_grant_code:
+  approver_name:
