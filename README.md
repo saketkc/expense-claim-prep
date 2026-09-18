@@ -8,7 +8,7 @@ A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) that p
 - Matches receipts to statement lines by date, amount, and (loosely) merchant name; flags ambiguous matches (duplicate amounts, FX charges, partial refunds) instead of guessing.
 - Redacts every statement transaction except the ones you're claiming, using [PyMuPDF](https://pymupdf.readthedocs.io/) to actually remove the underlying text (`scripts/redact_statement.py`). A black box drawn over text with most PDF tools is still copy-pasteable; this isn't.
 - Verifies the redaction by rendering the page and checking it, rather than assuming the script worked.
-- Organizes the output into a numbered folder structure so the redacted statements and their matching receipts are easy to cross-reference.
+- Organises the output into a numbered folder structure so the redacted statements and their matching receipts are easy to cross-reference.
 - Fills gaps: if a receipt has no bank confirmation email and it might be in Gmail, searches for it via browser automation (Claude Code's Chrome integration), after confirming the account and never touching a password or MFA code.
 - Generates a claim summary (optional) from a claimant-info template you fill in yourself (name, contact, bank details, claim purpose) itemized against the matched transactions. Bank/tax details are deliberately kept out of the generated summary; they go straight into your institution's own secure form.
 - Merges everything into one PDF (optional, `scripts/build_combined_claim.py`): a cover/index page, then per item [receipt, payment proof] back to back, with full statements attached at the end for items whose only proof is a statement line.
@@ -50,10 +50,14 @@ examples/claim_manifest.example.json         # example manifest for build_combin
 
 ## A word on the redaction script
 
-`redact_statement.py` finds each transaction row by a repeated date column and redacts every row that doesn't contain an exact match for one of your `--keep` tokens (reference numbers are the reliable anchor; exact amounts work if the statement has no reference column). It fails closed — it refuses to save if a keep-token matches zero rows or more than one, rather than silently producing a wrong redaction. It only works on statements with live text (not scanned images), and only redacts the pages it scans — see `SKILL.md` for the full list of what it does and doesn't cover.
+`redact_statement.py` finds each transaction row by a repeated date column and redacts every row that doesn't contain an exact match for one of your `--keep` tokens (reference numbers are the reliable anchor; exact amounts work if the statement has no reference column). It refuses to save if a keep-token matches zero rows or more than one, rather than silently producing a wrong redaction. It only works on statements with live text (not scanned images), and only redacts the pages it scans — see `SKILL.md` for the full list of what it does and doesn't cover.
 
 **Always render the output and look at it before submitting anything.** This tool is a starting point for a financial document going to a third party, not a black box to trust blindly.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT 
+
+## Credits
+
+Prototyped with [claude.ai](https://claude.ai/)
