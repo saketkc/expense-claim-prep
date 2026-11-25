@@ -34,6 +34,8 @@ The auto-discovery/auto-trigger mechanism (`SKILL.md` frontmatter + Claude Code'
    ```bash
    pip install pymupdf
    python scripts/redact_statement.py statement.pdf statement_redacted.pdf --keep 14067855696 14067601959
+   # extra areas the summary pass can't recognize (reward points etc.):
+   python scripts/redact_statement.py statement.pdf out.pdf --keep 11,242.45 --box 0:36,496,62,510
    python scripts/build_combined_claim.py manifest.json Combined_Expense_Claim.pdf
    ```
 3. The missing-payment-alert-email step tries, in order: a Gmail connector/MCP tool, Apple Mail via `osascript` (macOS only), mutt/notmuch, then browser automation as a last resort. An agent without any of these can just skip the step and find the alert emails manually.
@@ -50,7 +52,7 @@ examples/claim_manifest.example.json         # example manifest for build_combin
 
 ## A word on the redaction script
 
-`redact_statement.py` finds each transaction row by a repeated date column and redacts every row that doesn't contain an exact match for one of your `--keep` tokens (reference numbers are the reliable anchor; exact amounts work if the statement has no reference column). It fails closed: it refuses to save if a keep-token matches zero rows or more than one, rather than silently producing a wrong redaction. It only works on statements with live text (not scanned images), and only redacts the pages it scans — see `SKILL.md` for the full list of what it does and doesn't cover.
+`redact_statement.py` finds each transaction row by a repeated date column and redacts every row that doesn't contain an exact match for one of your `--keep` tokens (reference numbers are the reliable anchor; exact amounts work if the statement has no reference column). It handles `dd/mm/yyyy` and `08 Aug 26`-style date columns, and attaches wrapped description lines to the nearest date row. By default it also blacks out the account summary: money amounts and spend-breakdown percentages on page 1 and the table pages. Bare integers like reward points need `--box`, and `--keep-summary` turns the pass off. It fails closed: it refuses to save if a keep-token matches zero rows or more than one, rather than silently producing a wrong redaction. It only works on statements with live text (not scanned images), and only redacts the pages it scans — see `SKILL.md` for the full list of what it does and doesn't cover.
 
 **Always render the output and look at it before submitting anything.** This tool is a starting point for a financial document going to a third party, not a black box to trust blindly.
 
