@@ -6,6 +6,17 @@ claimant_info.json
 Claim_Summary.md
 *.pdf
 !examples/*.pdf
+# Real statements/receipts for local testing, any format (boarding-pass screenshots are images).
+data/
+*.jpg
+*.jpeg
+*.png
+!examples/*.png
+!docs/img/*.png
+.DS_Store
+# Per-claim mail job files can hold addresses and message IDs.
+*.env
+*.eml
 
 __pycache__/
 *.pyc

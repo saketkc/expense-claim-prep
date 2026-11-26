@@ -34,6 +34,7 @@ more than one row (ambiguous -- pick a more specific token, e.g. the
 reference number instead of an amount that repeats), it raises rather than
 silently producing a wrong redaction.
 """
+
 import argparse
 import re
 import sys
@@ -42,7 +43,9 @@ from collections import Counter
 import pymupdf
 
 DATE = re.compile(r"\d{2}[/-]\d{2}[/-]\d{2,4}")
-MONTH = re.compile(r"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?,?", re.I)
+MONTH = re.compile(
+    r"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?,?", re.I
+)
 AMOUNT = re.compile(r"[₹`$]?-?\d[\d,]*\.\d{2}")
 PERCENT = re.compile(r"\d+(\.\d+)?%")
 
@@ -53,9 +56,13 @@ def date_words(words):
     for i, w in enumerate(words):
         if DATE.fullmatch(w[4]):
             out.append(w)
-        elif (re.fullmatch(r"\d{1,2}", w[4]) and i + 2 < len(words)
-              and words[i + 1][5:7] == w[5:7] == words[i + 2][5:7]  # same block + line
-              and MONTH.fullmatch(words[i + 1][4]) and re.fullmatch(r"\d{2}|\d{4}", words[i + 2][4])):
+        elif (
+            re.fullmatch(r"\d{1,2}", w[4])
+            and i + 2 < len(words)
+            and words[i + 1][5:7] == w[5:7] == words[i + 2][5:7]  # same block + line
+            and MONTH.fullmatch(words[i + 1][4])
+            and re.fullmatch(r"\d{2}|\d{4}", words[i + 2][4])
+        ):
             out.append(w)
     return out
 
@@ -76,9 +83,14 @@ def redact_page(page, keep: set[str], match_counts: Counter):
     rows = sorted([w for w in dates if abs(w[0] - col_x) < 2], key=lambda w: w[1])
 
     gaps = sorted(b[1] - a[1] for a, b in zip(rows, rows[1:]))
-    reach = gaps[len(gaps) // 2]  # median row pitch: how far a wrapped line can sit from its date line
-    table = [w for w in words if w[0] >= col_x - 5
-             and rows[0][1] - reach < w[1] < rows[-1][1] + reach]
+    reach = gaps[
+        len(gaps) // 2
+    ]  # median row pitch: how far a wrapped line can sit from its date line
+    table = [
+        w
+        for w in words
+        if w[0] >= col_x - 5 and rows[0][1] - reach < w[1] < rows[-1][1] + reach
+    ]
     table_x1 = max(w[2] for w in table) + 2
 
     bands = [[] for _ in rows]
@@ -88,8 +100,12 @@ def redact_page(page, keep: set[str], match_counts: Counter):
 
     kept = []
     for band in bands:
-        rect = pymupdf.Rect(min(w[0] for w in band) - 2, min(w[1] for w in band) - 1,
-                            table_x1, max(w[3] for w in band) + 1)
+        rect = pymupdf.Rect(
+            min(w[0] for w in band) - 2,
+            min(w[1] for w in band) - 1,
+            table_x1,
+            max(w[3] for w in band) + 1,
+        )
         row_matches = {tok for w in band for tok in keep if tok == w[4]}
         match_counts.update(row_matches)
         if row_matches:
@@ -108,12 +124,20 @@ def redact_summary(page, kept_rects):
     for w in words:
         r = pymupdf.Rect(w[:4])
         pct = PERCENT.search(w[4]) and line_len[w[5:7]] <= 3
-        if (AMOUNT.fullmatch(w[4]) or pct) and not any(r.intersects(k) for k in kept_rects):
+        if (AMOUNT.fullmatch(w[4]) or pct) and not any(
+            r.intersects(k) for k in kept_rects
+        ):
             page.add_redact_annot(r + (-2, -1, 2, 1), fill=(0, 0, 0))
 
 
-def redact(src: str, out: str, keep: set[str], page_no: int | None = None,
-           summary: bool = True, boxes: list[tuple[int, pymupdf.Rect]] = ()) -> int:
+def redact(
+    src: str,
+    out: str,
+    keep: set[str],
+    page_no: int | None = None,
+    summary: bool = True,
+    boxes: list[tuple[int, pymupdf.Rect]] = (),
+) -> int:
     doc = pymupdf.open(src)
     pages = [doc[page_no]] if page_no is not None else list(doc)
     match_counts = Counter()
@@ -125,17 +149,23 @@ def redact(src: str, out: str, keep: set[str], page_no: int | None = None,
             kept[page.number] = result
 
     if not kept:
-        raise SystemExit("No transaction table found on the scanned page(s). "
-                          "Pass --page to target the right page, or the table may be a scanned image (can't redact text that isn't there).")
+        raise SystemExit(
+            "No transaction table found on the scanned page(s). "
+            "Pass --page to target the right page, or the table may be a scanned image (can't redact text that isn't there)."
+        )
 
     unmatched = keep - match_counts.keys()
     ambiguous = {tok: n for tok, n in match_counts.items() if n > 1}
     if unmatched:
-        raise SystemExit(f"--keep token(s) matched no row, nothing was saved: {sorted(unmatched)}. "
-                          "Check the token appears verbatim (exact word) in the table.")
+        raise SystemExit(
+            f"--keep token(s) matched no row, nothing was saved: {sorted(unmatched)}. "
+            "Check the token appears verbatim (exact word) in the table."
+        )
     if ambiguous:
-        raise SystemExit(f"--keep token(s) matched more than one row, nothing was saved: {ambiguous}. "
-                          "Use a more specific token (e.g. the reference number instead of an amount that repeats).")
+        raise SystemExit(
+            f"--keep token(s) matched more than one row, nothing was saved: {ambiguous}. "
+            "Use a more specific token (e.g. the reference number instead of an amount that repeats)."
+        )
 
     if summary:
         for n in {0, *kept}:
@@ -144,7 +174,10 @@ def redact(src: str, out: str, keep: set[str], page_no: int | None = None,
         doc[n].add_redact_annot(rect, fill=(0, 0, 0))
 
     for page in doc:
-        page.apply_redactions(images=pymupdf.PDF_REDACT_IMAGE_NONE, graphics=pymupdf.PDF_REDACT_LINE_ART_NONE)
+        page.apply_redactions(
+            images=pymupdf.PDF_REDACT_IMAGE_NONE,
+            graphics=pymupdf.PDF_REDACT_LINE_ART_NONE,
+        )
     doc.save(out, garbage=4, deflate=True)
     return sum(len(v) for v in kept.values())
 
@@ -155,15 +188,42 @@ def parse_box(s: str):
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("src")
     ap.add_argument("out")
-    ap.add_argument("--keep", nargs="+", required=True, help="exact tokens (reference numbers or amounts, as they literally appear in the table) whose row stays visible")
-    ap.add_argument("--page", type=int, default=None, help="0-indexed page to restrict to (default: scan all pages)")
-    ap.add_argument("--keep-summary", action="store_true", help="don't redact amounts/percentages in the account summary")
-    ap.add_argument("--box", action="append", type=parse_box, default=[], metavar="PAGE:x0,y0,x1,y1",
-                    help="extra area to black out (PDF points, 0-indexed page); repeatable")
+    ap.add_argument(
+        "--keep",
+        nargs="+",
+        required=True,
+        help="exact tokens (reference numbers or amounts, as they literally appear in the table) whose row stays visible",
+    )
+    ap.add_argument(
+        "--page",
+        type=int,
+        default=None,
+        help="0-indexed page to restrict to (default: scan all pages)",
+    )
+    ap.add_argument(
+        "--keep-summary",
+        action="store_true",
+        help="don't redact amounts/percentages in the account summary",
+    )
+    ap.add_argument(
+        "--box",
+        action="append",
+        type=parse_box,
+        default=[],
+        metavar="PAGE:x0,y0,x1,y1",
+        help="extra area to black out (PDF points, 0-indexed page); repeatable",
+    )
     args = ap.parse_args()
 
-    kept_rows = redact(args.src, args.out, set(args.keep), args.page, not args.keep_summary, args.box)
-    print(f"{args.out}: kept {kept_rows} row(s) visible across all matched pages", file=sys.stderr)
+    kept_rows = redact(
+        args.src, args.out, set(args.keep), args.page, not args.keep_summary, args.box
+    )
+    print(
+        f"{args.out}: kept {kept_rows} row(s) visible across all matched pages",
+        file=sys.stderr,
+    )

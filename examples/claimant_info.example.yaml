@@ -32,3 +32,14 @@ claim:
   purpose:                     # e.g. "Conference travel - CSHL Meeting, Aug 2026"
   cost_center_or_grant_code:
   approver_name:
+
+# Who claims go to. Add one entry per fund or claim type, so drafts start with
+# the right recipients and the right existing thread. If this is empty, the
+# skill can suggest people from your past claim emails; confirm before saving.
+claim_contacts:
+  - for: default                 # a grant/cost-center code, a category (travel, software), or "default"
+    to: []                       # e.g. ["accounts.office@example.edu"]
+    cc: []
+    thread_subject:              # reply in this thread if it exists, e.g. "Reimbursement thread for <code>"
+  # - for: host-reimbursed       # invited talks: the host's organiser, not your accounts office
+  #   to: []

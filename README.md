@@ -1,64 +1,155 @@
 # expense-claim-prep
 
-A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) that prepares a folder of receipts and credit-card statements for an expense claim. It matches travel/ride/flight receipts to statement transactions, permanently redacts every unrelated statement line (not just paints over it), tracks down missing payment-alert emails, and optionally generates a claim summary from your own claimant/bank-details template.
+This repository contains a [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills). The skill prepares receipts and credit card statements for an expense claim.
 
-## What it does
+The skill does these tasks:
 
-- Inventories a folder of PDFs and classifies them as statements, receipts, or alert emails.
-- Matches receipts to statement lines by date, amount, and (loosely) merchant name; flags ambiguous matches (duplicate amounts, FX charges, partial refunds) instead of guessing.
-- Redacts every statement transaction except the ones you're claiming, using [PyMuPDF](https://pymupdf.readthedocs.io/) to actually remove the underlying text (`scripts/redact_statement.py`). A black box drawn over text with most PDF tools is still copy-pasteable; this isn't.
-- Verifies the redaction by rendering the page and checking it, rather than assuming the script worked.
-- Organizes the output into a numbered folder structure so the redacted statements and their matching receipts are easy to cross-reference.
-- Fills gaps: if a receipt has no bank confirmation email, finds it and hands back a direct link/reference instead of a screenshot, using the Gmail connector (`https://mail.google.com/mail/u/0/#all/<messageId>`), Apple Mail on macOS (a `message://` link built from AppleScript), or mutt/notmuch (Message-ID + file path), in that order, and only takes a browser-automation screenshot if none of those apply. It confirms the account first and never touches a password or MFA code.
-- Generates a claim summary (optional) from a claimant-info template you fill in yourself (name, contact, bank details, claim purpose) itemized against the matched transactions. Bank/tax details are deliberately kept out of the generated summary; they go straight into your institution's own secure form.
-- Merges everything into one PDF (optional, `scripts/build_combined_claim.py`): a cover/index page, then per item [receipt, payment proof] back to back, with full statements attached at the end for items whose only proof is a statement line.
+- It finds the receipt for each transaction on a statement.
+- It removes all the other transactions from the statement PDF.
+- It finds missing payment alerts in your mail.
+- It makes one PDF for each claim.
+- It sends the claim email only after you accept a preview.
 
-See [`SKILL.md`](./SKILL.md) for the full workflow and the boundaries it holds to (no guessing, no fabricated fields, no silently dropping refund lines).
+## Functions
 
-## Using it with Claude Code
+### Find and match the documents
 
-Clone (or symlink) this repo into your skills directory:
+- The skill reads each PDF in a folder. It puts each PDF into one of three types: statement, receipt, or alert email.
+- The skill can also start from your mailbox. It finds e-tickets, ride receipts, card alerts, and invoices.
+- The skill keeps only the tickets with your name. It puts the tickets into groups, one group for each trip.
+- The skill finds the statement line for each receipt. It compares the date, the amount, and the merchant name.
+- If the statement line for a receipt is not clear, the skill tells you. Examples are two equal amounts, a charge in a foreign currency, and a partial refund.
+- The skill also tells you of canceled trips, personal trips, agent fees, and invoices that do not agree with the card charge.
+
+### Remove the other transactions
+
+- `scripts/redact_statement.py` removes the text of all the other transactions from the PDF. It uses [PyMuPDF](https://pymupdf.readthedocs.io/).
+- Most PDF tools only put a black box on the text. You can copy the text below the box. This script removes the text.
+- The script also removes the account summary, for example the balances and the limits.
+- After the script runs, the skill makes an image of each page. It examines the image and the text.
+
+### Make sure that you did not claim an item before
+
+- `scripts/find_claimed.py` reads the PDF attachments in your sent mail.
+- It finds invoice numbers, PNRs, and card reference numbers in the attachments.
+- A search of the email subjects is not sufficient. The subject of a claim that you sent before can be different. The file name can also be different.
+
+### Find missing payment alerts
+
+- If a receipt has no bank alert, the skill finds the alert in your mail.
+- The skill gives you a link or a reference, not a screenshot.
+- The skill uses these tools in this sequence: the Gmail connector, Apple Mail on macOS, mutt with notmuch, and a browser.
+- The skill asks you for the mail account first. It does not type passwords or MFA codes.
+
+### Make the claim documents
+
+- `scripts/build_combined_claim.py` makes one PDF for the claim.
+- The PDF has a cover page, each receipt with its payment proof, and the statement pages.
+- A receipt can have more than one file, for example a ticket and its boarding passes. Images are permitted.
+- You can attach only the necessary pages of a statement.
+- The skill can make a claim summary from a template. You write your data in the template.
+- The summary does not include bank data or tax numbers. Write these data only in the official form of your institution.
+
+### Select a grant (optional)
+
+- If you have data for your funds, the skill selects a grant and a budget head for each claim.
+- The default rules are:
+  - Use only a travel head for travel.
+  - Use the money that expires first.
+  - Use flexible money last.
+- The skill shows the selection to you before it makes the documents.
+
+### Send the claim email (optional)
+
+- The template has a `claim_contacts` list. The list gives the recipients for each grant or category.
+- If the list is empty, the skill can find the persons who received your claim emails before.
+- `scripts/send_claim_mail.py` sends the email with mutt or neomutt.
+- First, the script shows a preview. The preview shows the recipients, the text, the attachments, and the items in the claim.
+- The script sends the email only with the code from the preview. If you change the email after the preview, make a new preview.
+- If the mail server is not set, the script stops. It does not use the local mail queue.
+
+## Examples
+
+### 1. Remove the other transactions from the statement
+
+The statement keeps only the claimed lines. Use `--box` to remove the reward points.
+
+![Statement before and after redaction](docs/img/redaction.png)
+
+### 2. Find the items that you claimed before
+
+![find_claimed.py output](docs/img/find_claimed.png)
+
+### 3. Make one PDF for the claim
+
+![Combined claim cover page](docs/img/combined_cover.png)
+
+### 4. Examine the preview, then send the email
+
+![send_claim_mail.py preview](docs/img/send_preview.png)
+
+Refer to [`SKILL.md`](./SKILL.md) for the full procedure and the limits of the skill.
+
+## Use with Claude Code
+
+Clone this repository into your skills directory:
 
 ```bash
 git clone https://github.com/saketkc/expense-claim-prep ~/.claude/skills/expense-claim-prep
 ```
 
-Claude Code auto-discovers `SKILL.md`, and its frontmatter `description` is the trigger: just ask something like *"prepare my receipts and credit card statement for an expense claim, redact everything else"* and it activates on its own. No slash command needed.
+Claude Code finds `SKILL.md` automatically. The `description` field in its frontmatter starts the skill.
 
-## Using it with another agent (Cursor, Codex CLI, a plain chat model, etc.)
+An example request is *"prepare my receipts and credit card statement for an expense claim, redact everything else"*. A slash command is not necessary.
 
-The auto-discovery/auto-trigger mechanism (`SKILL.md` frontmatter + Claude Code's `Skill` tool) is Claude-Code-specific. Everything else here is plain text and plain Python, so any coding agent, or you by hand, can follow it:
+## Use with a different agent
 
-1. Point your agent at [`SKILL.md`](./SKILL.md) and tell it to follow that workflow for the folder of PDFs.
-2. Both scripts run standalone with any Python plus [`pymupdf`](https://pypi.org/project/PyMuPDF/); no Claude Code required:
+Only Claude Code starts the skill automatically. The other parts are text and Python. Any agent can use them, and you can use them manually.
+
+1. Give `SKILL.md` to your agent. Tell the agent to do the procedure on your folder of PDFs.
+2. Run the scripts without Claude Code. The PDF scripts use Python and [`pymupdf`](https://pypi.org/project/PyMuPDF/):
    ```bash
    pip install pymupdf
    python scripts/redact_statement.py statement.pdf statement_redacted.pdf --keep 14067855696 14067601959
-   # extra areas the summary pass can't recognize (reward points etc.):
+   # remove areas that the summary pass does not find (reward points):
    python scripts/redact_statement.py statement.pdf out.pdf --keep 11,242.45 --box 0:36,496,62,510
    python scripts/build_combined_claim.py manifest.json Combined_Expense_Claim.pdf
+   # find items that you claimed before (uses pdftotext):
+   notmuch search --output=files 'from:me@example.org' | python scripts/find_claimed.py INV-0004 PNR123
+   # send a claim: make a preview, then send with the code from the preview
+   python scripts/send_claim_mail.py preview job.json
+   python scripts/send_claim_mail.py send job.json --confirm <code>
    ```
-3. The missing-payment-alert-email step tries, in order: a Gmail connector/MCP tool, Apple Mail via `osascript` (macOS only), mutt/notmuch, then browser automation as a last resort. An agent without any of these can just skip the step and find the alert emails manually.
+3. The step for missing alerts uses a Gmail connector, Apple Mail, mutt with notmuch, or a browser. If your agent has none of these tools, find the alert emails manually.
 
 ## Files
 
 ```
-SKILL.md                                     # the workflow + boundaries Claude (or any agent) follows
-scripts/redact_statement.py                  # standalone PDF redaction tool (no Claude Code dependency)
-scripts/build_combined_claim.py              # merges matched receipts + proof into one submission PDF
-examples/claimant_info.example.yaml          # blank template for claimant + bank details
+SKILL.md                                     # the procedure and the limits that the agent obeys
+scripts/redact_statement.py                  # removes transactions from a statement PDF
+scripts/build_combined_claim.py              # makes one PDF from the receipts and the proofs
+scripts/find_claimed.py                      # finds claimed items in the attachments of sent mail
+scripts/send_claim_mail.py                   # shows a preview, then sends a claim email with neomutt or mutt
+examples/demo/make_screenshots.py            # makes the images in docs/img/
+examples/claimant_info.example.yaml          # empty template for the claimant data and the bank data
 examples/claim_manifest.example.json         # example manifest for build_combined_claim.py
 ```
 
-## A word on the redaction script
+## Limits of the redaction script
 
-`redact_statement.py` finds each transaction row by a repeated date column and redacts every row that doesn't contain an exact match for one of your `--keep` tokens (reference numbers are the reliable anchor; exact amounts work if the statement has no reference column). It handles `dd/mm/yyyy` and `08 Aug 26`-style date columns, and attaches wrapped description lines to the nearest date row. By default it also blacks out the account summary: money amounts and spend-breakdown percentages on page 1 and the table pages. Bare integers like reward points need `--box`, and `--keep-summary` turns the pass off. It fails closed: it refuses to save if a keep-token matches zero rows or more than one, rather than silently producing a wrong redaction. It only works on statements with live text (not scanned images), and only redacts the pages it scans — see `SKILL.md` for the full list of what it does and doesn't cover.
+- The script finds each transaction row from the date column.
+- The script keeps a row only if the row contains one of your `--keep` values.
+- Use reference numbers as `--keep` values. Use exact amounts only if the statement has no reference column.
+- The script finds dates in the formats `dd/mm/yyyy` and `08 Aug 26`.
+- The script removes the amounts and the percentages in the account summary. It does not remove numbers without decimals, for example reward points. Use `--box` for these numbers.
+- If a `--keep` value agrees with zero rows or with more than one row, the script stops. It does not save the file.
+- The script cannot remove text from a scanned image.
 
-**Always render the output and look at it before submitting anything.** This tool is a starting point for a financial document going to a third party, not a black box to trust blindly.
+CAUTION: Examine each page of the output before you send it. The script can make errors that you cannot see in the text.
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+MIT. Refer to [LICENSE](./LICENSE).
 
 ## Credits
 
